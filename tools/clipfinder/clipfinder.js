@@ -1,15 +1,18 @@
 const charId = 1;
-let startX = 360;
+let startX = 0;
 let startVel = 0;
-const targetX = 380;
+const targetX = 0;
+const xWindow = 0.01; // 0.01
+const allowOverflow = true;
 const checkPos = true;
-const checkVel = false;
-const base = 6; // 3 for no z presses, 6 for z presses included
-const steps = 100000000; // 100000000000 10000000000
-const stepSize = 79; //2499968 172999 14054 14554
+const checkVel = true;
+const velThresh = 0;
+const base = 3; // 3 for no z presses, 6 for z presses included
+const steps = 1000000; // 100000000000 10000000000
+const stepSize = 1; //2499968 172999 14054 14554
 const start = Math.floor(Math.random()*stepSize);
-const head = []; // [1,1,1] [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
-const tail = [3]; // [0,0,0,0,0] [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+const head = [];
+const tail = [2];
 let isControl = true;
 const isonob = false;
 
@@ -111,10 +114,11 @@ function main() {
 			if (i == keyPattern.length-2) onob = true;
 			else onob = false;
 			simulateFrame(keyPattern[i]);
+			if (!allowOverflow && char.x > targetX+xWindow) break;
 		}
 		// if ((char.x + 30) % 30 < 0.01) {
-		if (((!checkPos) || (checkPos && char.x-targetX < 0.01 && char.x-targetX > 0)) &&
-			((!checkVel) || checkVel && char.vx == 0)) {
+		if (((!checkPos) || (checkPos && char.x-targetX < xWindow && char.x-targetX > 0)) &&
+			((!checkVel) || (checkVel && Math.abs(char.vx) <= velThresh))) {
 			console.log(j + ': ' + char.x + ' with velocity ' + char.vx);
 			console.log(keyPattern);
 			// break;
