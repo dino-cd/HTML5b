@@ -3180,6 +3180,7 @@ function playLevel(i) {
 	wipeTimer = 30;
 	menuScreen = 3;
 	if (currentLevel == 0) toSeeCS = true; //!!!!!
+	else toSeeCS = false;
 	transitionType = 1;
 	resetLevel();
 	levelTimer = 0; //!!!!!
