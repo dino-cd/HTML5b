@@ -1,6 +1,6 @@
 const charId = 1;
 let startX = 0;
-let startVel = 0;
+let startVel = 3.9999998619650743;
 const targetX = 0;
 const xWindow = 0.01; // 0.01
 const allowOverflow = true;
@@ -12,7 +12,7 @@ const steps = 1000000; // 100000000000 10000000000
 const stepSize = 1; //2499968 172999 14054 14554
 const start = Math.floor(Math.random()*stepSize);
 const head = [];
-const tail = [2];
+const tail = [];
 let isControl = true;
 const isonob = false;
 
