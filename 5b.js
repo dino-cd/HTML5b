@@ -355,7 +355,7 @@ function parseTASString() {
 				} else {
 					loopLength = 1;
 				}
-				console.log('rlc:' + remainingLoopCount + ' ls:' + loopStart + ' ll:' + loopLength);
+				// console.log('rlc:' + remainingLoopCount + ' ls:' + loopStart + ' ll:' + loopLength);
 			}
 			tasKeys[i].push([]);
 			for (var k = 0; k < splittedString[j].length; k++) {
