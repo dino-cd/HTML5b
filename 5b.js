@@ -339,7 +339,6 @@ function parseTASString() {
 	}
 }
 function parseSingleTASString(str) {
-	console.log(str);
 	const keys = [];
 	let splittedString = str.split(' ');
 	let repeatCount;
