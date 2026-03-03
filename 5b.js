@@ -334,39 +334,45 @@ const keyStringCodes = {'R':39,'L':37,'U':38,'D':40,'J':32,'E':13,'Z':90}
 
 function parseTASString() {
 	tasKeys = [];
-	let loopLength = -1;
-	let loopStart = -1;
-	let remainingLoopCount = -1;
 	for (var i = 0; i < tasString.length; i++) {
-		let splittedString = tasString[i].split(' ');
-		tasKeys.push([]);
-		for (var j = 0; j < splittedString.length; j++) {
-			if (j !== loopStart && /[\[\d]/.test(splittedString[j][0])) {
-				loopStart = j;
-				remainingLoopCount = parseInt(splittedString[j].replaceAll('[', '').split(':')[0]);
-				if (isNaN(remainingLoopCount)) remainingLoopCount = 0;
-				else remainingLoopCount--;
-				if (splittedString[j][0] == '[') {
-					for (loopLength = 0;
-						loopLength + loopStart < splittedString.length &&
-						splittedString[loopLength + loopStart].slice(-1) !== ']';
-						loopLength++);
-					loopLength++;
-				} else {
-					loopLength = 1;
+		tasKeys.push(parseSingleTASString(tasString[i]));
+	}
+}
+function parseSingleTASString(str) {
+	console.log(str);
+	const keys = [];
+	let splittedString = str.split(' ');
+	let repeatCount;
+	for (var j = 0; j < splittedString.length; j++) {
+		if (/^\d+:/.test(splittedString[j])) {
+			const halves = splittedString[j].split(':');
+			repeatCount = parseInt(halves[0]);
+		} else {
+			repeatCount = 1;
+		}
+		if (/^(\d+:)?\[/.test(splittedString[j])) {
+			let nestLevel = 0;
+			let loopStart = j;
+			while (j < splittedString.length && (nestLevel > 0 || j == loopStart)) {
+				nestLevel -= (splittedString[j].match(/\]/g) || []).length;
+				nestLevel += (splittedString[j].match(/\[/g) || []).length;
+				j++;
+			}
+			j--;
+			if (nestLevel > 0 || j == loopStart) continue;
+			const loopKeys = parseSingleTASString([splittedString[loopStart].split('[').slice(1).join('['), ...splittedString.slice(loopStart+1, j), splittedString[j].replace(/\]$/, '')].join(' '));
+			for (let l = 0; l < repeatCount; l++) keys.push(...loopKeys);
+		} else {
+			for (let l = 0; l < repeatCount; l++) {
+				keys.push([]);
+				for (var k = 0; k < splittedString[j].length; k++) {
+					const keyLetter = splittedString[j][k];
+					if (keyLetter in keyStringCodes) keys[keys.length-1].push(keyStringCodes[keyLetter])
 				}
-				// console.log('rlc:' + remainingLoopCount + ' ls:' + loopStart + ' ll:' + loopLength);
-			}
-			tasKeys[i].push([]);
-			for (var k = 0; k < splittedString[j].length; k++) {
-				tasKeys[i][tasKeys[i].length-1].push(keyStringCodes[splittedString[j][k]])
-			}
-			if (remainingLoopCount > 0 && j+1 == loopStart + loopLength) {
-				remainingLoopCount--;
-				j = loopStart - 1;
 			}
 		}
 	}
+	return keys;
 }
 
 let defaultLevelsString = '';
@@ -481,7 +487,7 @@ function loadLevels() {
 		}
 
 		// Temporary crash fix for chrome devices on version 117+
-		console.log(levelsString);
+		console.log(levelsString.slice(-1));
 
 		// Read Level Metadata
 		levelStart += lineLength;
