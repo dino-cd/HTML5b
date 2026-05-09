@@ -3470,6 +3470,8 @@ function drawLevel() {
 	}
 	// We draw the characters in here so we can layer liquids above them.
 	drawCharacters();
+	// Draw freefall trajectory arc and landing silhouette
+	drawTrajectoryAndSilhouette();
 	// Draw Liquids
 	for (let j = 0; j < tileDepths[3].length; j++) {
 		addTileMovieClip(tileDepths[3][j].x, tileDepths[3][j].y, ctx);
@@ -3497,6 +3499,153 @@ function drawLevel() {
 			ctx.stroke();
 		}
 		ctx.globalAlpha = 1;
+	}
+}
+function drawTrajectoryAndSilhouette() {
+	if (
+		control >= charCount ||
+		control >= 1000 ||
+		!char[control] ||
+		char[control].charState < 5 ||
+		char[control].onob ||
+		char[control].submerged >= 2
+	) return;
+
+	const c = char[control];
+	if (c.vy === 0 && c.onob) return;
+	const MAX_STEPS = 600;
+	const TILE = 30;
+
+	let sx = c.x;
+	let sy = c.y;
+	let svx = c.vx;
+	let svy = c.vy;
+	const sw = c.w;
+	const sh = c.h;
+	const grav = Math.sign(c.weight2) * Math.sqrt(Math.abs(c.weight2));
+	const friction = c.friction;
+	const dots = [];
+	let landX = null, landY = null;
+	let landed = false;
+
+	function simSolidBelow(px, py) {
+		const tileY = Math.floor(py / TILE);
+		if (tileY < 0 || tileY >= levelHeight) return false;
+		for (let tx = Math.floor((px - sw) / TILE); tx <= Math.floor((px + sw - 0.01) / TILE); tx++) {
+			if (tx < 0 || tx >= levelWidth) continue;
+			if (!outOfRange(tx, tileY) && blockProperties[thisLevel[tileY][tx]][1]) return true;
+		}
+		return false;
+	}
+
+	function simSolidAbove(px, py) {
+		const tileY = Math.floor((py - sh) / TILE);
+		if (tileY < 0 || tileY >= levelHeight) return false;
+		for (let tx = Math.floor((px - sw) / TILE); tx <= Math.floor((px + sw - 0.01) / TILE); tx++) {
+			if (tx < 0 || tx >= levelWidth) continue;
+			if (!outOfRange(tx, tileY) && blockProperties[thisLevel[tileY][tx]][0]) return true;
+		}
+		return false;
+	}
+
+	function simSolidRight(px, py) {
+		const tileX = Math.floor((px + sw) / TILE);
+		if (tileX < 0 || tileX >= levelWidth) return false;
+		for (let ty = Math.floor((py - sh) / TILE); ty <= Math.floor((py - 0.01) / TILE); ty++) {
+			if (ty < 0 || ty >= levelHeight) continue;
+			if (!outOfRange(tileX, ty) && blockProperties[thisLevel[ty][tileX]][3]) return true;
+		}
+		return false;
+	}
+
+	function simSolidLeft(px, py) {
+		const tileX = Math.floor((px - sw) / TILE) - 1;
+		if (tileX < 0 || tileX >= levelWidth) return false;
+		for (let ty = Math.floor((py - sh) / TILE); ty <= Math.floor((py - 0.01) / TILE); ty++) {
+			if (ty < 0 || ty >= levelHeight) continue;
+			if (!outOfRange(tileX, ty) && blockProperties[thisLevel[ty][tileX]][2]) return true;
+		}
+		return false;
+	}
+
+	for (let step = 0; step < MAX_STEPS; step++) {
+		svy = Math.min(svy + grav, 25);
+		svx = (svx - 0) * (1 - (1 - friction) * 0.12); // air friction (no fricGoal
+		if (Math.abs(svx) < 0.01) svx = 0;
+
+		const prevX = sx;
+		const prevY = sy;
+		sx += svx;
+		sy += svy;
+		if (sy > levelHeight * TILE + 200) break;
+		if (svy > 0 && sy > prevY) {
+			const newTileY = Math.floor(sy / TILE);
+			const oldTileY = Math.floor(prevY / TILE);
+			if (newTileY > oldTileY) {
+				if (simSolidBelow(sx, sy)) {
+					sy = newTileY * TILE;
+					landX = sx;
+					landY = sy;
+					landed = true;
+					break;
+				}
+			}
+		}
+		if (svy < 0 && sy < prevY) {
+			if (simSolidAbove(sx, sy)) {
+				svy = 0;
+			}
+		}
+		if (svx > 0 && simSolidRight(sx, sy)) { svx = 0; sx = prevX; }
+		if (svx < 0 && simSolidLeft(sx, sy))  { svx = 0; sx = prevX; }
+		if (step % 4 === 0) dots.push({x: sx, y: sy - sh / 2});
+	}
+	if (!landed && dots.length === 0) return;
+	ctx.save();
+	ctx.globalAlpha = 0.65;
+
+	for (let k = 0; k < dots.length; k++) {
+		const t = k / dots.length;
+		const r = Math.max(1.5, 3 * (1 - t * 0.5));
+		ctx.fillStyle = t < 0.5 ? '#ffffff' : '#ffdd44';
+		ctx.beginPath();
+		ctx.arc(dots[k].x, dots[k].y, r, 0, Math.PI * 2);
+		ctx.fill();
+	}
+	if (dots.length > 1) {
+		ctx.globalAlpha = 0.25;
+		ctx.strokeStyle = '#ffffff';
+		ctx.lineWidth = 1;
+		ctx.setLineDash([4, 6]);
+		ctx.beginPath();
+		ctx.moveTo(c.x, c.y - sh / 2);
+		for (const d of dots) ctx.lineTo(d.x, d.y);
+		ctx.stroke();
+		ctx.setLineDash([]);
+	}
+
+	ctx.globalAlpha = 1;
+	ctx.restore();
+	if (landed) {
+		ctx.save();
+		ctx.globalAlpha = 0.25;
+		ctx.fillStyle = '#44aaff';
+		ctx.fillRect(landX - sw, landY - sh, sw * 2, sh);
+		ctx.globalAlpha = 0.5;
+		ctx.strokeStyle = '#88ccff';
+		ctx.lineWidth = 1.5;
+		ctx.strokeRect(landX - sw, landY - sh, sw * 2, sh);
+		ctx.globalAlpha = 0.7;
+		ctx.strokeStyle = '#ffdd44';
+		ctx.lineWidth = 2;
+		const mx = landX, my = landY;
+		const ms = 5;
+		ctx.beginPath();
+		ctx.moveTo(mx - ms, my - ms); ctx.lineTo(mx + ms, my + ms);
+		ctx.moveTo(mx + ms, my - ms); ctx.lineTo(mx - ms, my + ms);
+		ctx.stroke();
+
+		ctx.restore();
 	}
 }
 
